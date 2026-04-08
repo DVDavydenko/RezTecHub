@@ -108,8 +108,9 @@
     </main>
 
     <script>
-        // const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwtRr7kO1wvZApkmIxqKjsqT0K39A3Uvms9EiJpi1DUNJlnP866HUKVdz6nVvNZADy9RQ/exec";; 
-        // ------------------------------
+        // --- БЕЗПЕЧНЕ ПІДКЛЮЧЕННЯ ЧЕРЕЗ GOOGLE SCRIPT ---
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwtRr7kO1wvZApkmIxqKjsqT0K39A3Uvms9EiJpi1DUNJlnP866HUKVdz6nVvNZADy9RQ/exec";
+        // ------------------------------------------------
 
         const state = {
             user: { name: '', class: '' },
@@ -492,9 +493,11 @@
         }
 
         async function generateAndSubmitReport() {
+            // Перевірка виконання всіх завдань
             const uncompleted = ['m1', 'm2', 'm3', 'm4'].filter(m => !state.progress[m]);
             if (uncompleted.length > 0) return showErrorAlert("Ви не пройшли всі практичні модулі!");
 
+            // Перевірка довжини есе
             const essay = document.getElementById('essay').value.trim();
             if(essay.length < 20) return showErrorAlert("Есе занадто коротке. Напишіть розгорнуту думку.");
 
@@ -521,44 +524,29 @@
             msg += `📝 *АНАЛІЗ ЕСЕ (+${gradeData.essayScore} бал.):*\n`;
             msg += `"${essay.substring(0, 500)}${essay.length > 500 ? '...' : ''}"\n\n`;
 
-            async function generateAndSubmitReport() {
-    // ... логіка перевірок (залишається без змін) ...
+            try {
+                // Відправляємо запит до Google Apps Script (без CORS помилок)
+                await fetch(GOOGLE_SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors', // Обов'язково для Google Scripts
+                    cache: 'no-cache',
+                    body: JSON.stringify({ text: msg })
+                });
 
-    try {
-        await fetch(GOOGLE_SCRIPT_URL, {
-            method: 'POST',
-            mode: 'no-cors', // Обов'язково для Google Scripts
-            cache: 'no-cache',
-            body: JSON.stringify({ text: msg })
-        });
+                // Якщо код дійшов сюди, запит відправлено успішно
+                state.progress.m5 = true;
+                renderNav();
+                zone.innerHTML = `
+                    <div class="p-10 bg-emerald-50 border border-emerald-200 rounded-[3rem] text-center fade-in">
+                        <div class="text-6xl mb-4 text-emerald-500 font-black">${gradeData.total}</div>
+                        <p class="font-black text-emerald-900 text-2xl tracking-tight">Ваша оцінка сформована!</p>
+                        <p class="text-sm text-emerald-600 mt-2 font-bold uppercase tracking-widest">Рівень: ${gradeData.level}</p>
+                        <p class="text-xs text-slate-500 mt-4">Детальний звіт та аналіз помилок відправлено вчителю.</p>
+                    </div>`;
 
-        // Оскільки mode: 'no-cors' не дає прочитати відповідь, 
-        // ми припускаємо, що все добре, якщо не вилетіла помилка
-        state.progress.m5 = true;
-        renderNav();
-        document.getElementById('action-zone').innerHTML = `
-            <div class="p-10 bg-emerald-50 border border-emerald-200 rounded-[3rem] text-center fade-in">
-                <div class="text-6xl mb-4 text-emerald-500 font-black">${gradeData.total}</div>
-                <p class="font-black text-emerald-900 text-2xl tracking-tight">Звіт успішно надіслано!</p>
-            </div>`;
-    } catch (e) {
-        alert("Помилка відправки. Перевірте з'єднання.");
-    }
-}
-
-                if(res.ok) {
-                    state.progress.m5 = true;
-                    renderNav();
-                    zone.innerHTML = `
-                        <div class="p-10 bg-emerald-50 border border-emerald-200 rounded-[3rem] text-center fade-in">
-                            <div class="text-6xl mb-4 text-emerald-500 font-black">${gradeData.total}</div>
-                            <p class="font-black text-emerald-900 text-2xl tracking-tight">Ваша оцінка сформована!</p>
-                            <p class="text-sm text-emerald-600 mt-2 font-bold uppercase tracking-widest">Рівень: ${gradeData.level}</p>
-                            <p class="text-xs text-slate-500 mt-4">Детальний звіт та аналіз помилок відправлено вчителю.</p>
-                        </div>`;
-                } else throw new Error();
             } catch (e) {
-                zone.innerHTML = `<div class="p-4 bg-rose-50 text-rose-700 rounded-3xl border border-rose-100 text-center font-bold text-sm">Помилка мережі.</div><button onclick="generateAndSubmitReport()" class="mt-4 text-xs font-black text-indigo-600 uppercase underline mx-auto block">Повторити</button>`;
+                // Якщо зник інтернет або сталася інша критична помилка
+                zone.innerHTML = `<div class="p-4 bg-rose-50 text-rose-700 rounded-3xl border border-rose-100 text-center font-bold text-sm">Помилка мережі. Перевірте з'єднання з Інтернетом.</div><button onclick="generateAndSubmitReport()" class="mt-4 text-xs font-black text-indigo-600 uppercase underline mx-auto block">Повторити спробу</button>`;
             }
         }
 
